@@ -1,0 +1,17 @@
+input = getDirectory("Choose folder with CZI files");
+output = getDirectory("Choose output folder");
+
+list = getFileList(input);
+
+for (i = 0; i < list.length; i++) {
+    if (endsWith(list[i], ".czi")) {
+
+        run("Bio-Formats Importer", 
+        "open=[" + input + list[i] + "] autoscale color_mode=Default view=Hyperstack stack_order=XYCZT");
+
+        name = File.nameWithoutExtension(list[i]);
+        saveAs("Tiff", output + name + ".tif");
+
+        close();
+    }
+}
