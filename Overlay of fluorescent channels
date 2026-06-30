@@ -1,0 +1,77 @@
+// Macro to process DAPI and CTNT images from the same folder and create an overlay image of both channels
+// Author: Generated with assistance from AI
+// Date: 24.06.25
+
+function processImages() {
+    // Get the directory containing both images
+    inputDir = getDirectory("Choose Directory Containing Both Images");
+
+    // Get the output directory
+    outputDir = getDirectory("Choose Output Directory");
+
+    // Create subfolders in output directory
+    File.makeDirectory(outputDir + "processed_DAPI");
+    File.makeDirectory(outputDir + "processed_CTNT");
+    File.makeDirectory(outputDir + "overlays");
+
+    // Define file paths
+    dapiPath = inputDir + "Image_CH1.tif";
+    ctntPath = inputDir + "Image_CH2.tif";
+
+    // Check if files exist
+    if (!File.exists(dapiPath) || !File.exists(ctntPath)) {
+        showMessage("Error: Both Image_CH1.tif and Image_CH2.tif must be present in the selected directory");
+        return;
+    }
+
+    // Extract base name from directory path
+    baseName = File.getName(inputDir);
+    if (baseName.endsWith("/")) {
+        baseName = baseName.substring(0, baseName.length-1);
+    }
+
+    // Open images
+    open(dapiPath);
+    open(ctntPath);
+
+    // Process DAPI image
+    selectWindow("Image_CH1.tif");
+    run("Duplicate...", "title=DAPI");
+    selectWindow("DAPI");
+    run("Subtract Background...", "rolling=1000 sliding");
+    setMinAndMax(32, 287);
+    run("Apply LUT");
+   
+
+    // Process CTNT image
+    selectWindow("Image_CH2.tif");
+    run("Duplicate...", "title=CTNT");
+    selectWindow("CTNT");
+    setMinAndMax(39, 106);
+    run("Subtract Background...", "rolling=1500 sliding");
+    setMinAndMax(0, 183);
+    run("Apply LUT");
+    run("Subtract Background...", "rolling=1500 sliding");
+    
+
+    // Create overlay and saving all pictures
+    imageCalculator("Add create", "CTNT","DAPI");
+    selectWindow("Result of CTNT");
+    run("Smooth");
+    saveAs("Tiff", outputDir + "overlays/" + baseName + "_overlay.tif");
+    selectWindow("DAPI");
+    saveAs("Tiff", outputDir + "processed_DAPI/" + baseName + "_DAPI.tif");
+    selectWindow("CTNT");
+    saveAs("Tiff", outputDir + "processed_CTNT/" + baseName + "_CTNT.tif");
+    // Clean up
+    close("DAPI");
+    close("CTNT");
+    close("Image_CH1.tif");
+    close("Image_CH2.tif");
+    close("Result of CTNT");
+    close("*");
+    showMessage("Processing complete!\nResults saved in:\n" + outputDir);
+}
+
+// Run the main function
+processImages();
