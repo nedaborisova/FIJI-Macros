@@ -1,0 +1,44 @@
+
+//Macro for adding scalebar on images
+inputDir = getDirectory("Choose a folder with images");
+
+setBatchMode(true);
+
+// Start recursive processing from inputDir
+processFolder(inputDir);
+
+setBatchMode(false);
+print("Processing complete!");
+
+
+// Recursive function to process all images in the folder and subfolders
+function processFolder(folder) {
+    list = getFileList(folder);
+    for (i = 0; i < list.length; i++) {
+        path = folder + list[i];
+        if (File.isDirectory(path)) {
+            // Recurse into subfolder
+            processFolder(path);
+        } else {
+            // Check if file is an image
+            filename = list[i].toLowerCase();
+            if (endsWith(filename, ".tif") || endsWith(filename, ".jpg") || endsWith(filename, ".png")) {
+                open(path);
+
+                // Set scale (adjust as needed)
+                run("Set Scale...", "distance=1 known=0.18872 unit=um global");
+
+                // Add scale bar
+                run("Scale Bar...", "width=100 height=20 font=50 color=White background=None location=[Lower Right] bold");
+
+                // Save processed image back into the same folder with _scalebar suffix
+                baseName = substring(list[i], 0, lastIndexOf(list[i], "."));
+                saveName = folder + baseName + "_scalebar.tif";
+
+                saveAs("Tiff", saveName);
+
+                close();
+            }
+        }
+    }
+}
