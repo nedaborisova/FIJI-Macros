@@ -1,0 +1,116 @@
+// Macro to analyze Image_CH2.tif files in folders and save fluorescence intensity measurements
+// Based on recorded analysis steps
+function processImage() {
+    // Get the current image title
+    roiManager("Reset");
+    originalTitle = getTitle();
+    imagePath = getDirectory("image") + getTitle();
+    //creating subfoler for measurements to be saved into
+    parentDir = getDirectory("image");
+        measurementsDir = parentDir + "Measurements" + File.separator;
+        if (!File.isDirectory(measurementsDir)) {
+            File.makeDirectory(measurementsDir);
+        }
+    // Perform segmentation
+    run("Duplicate...", "title=segmentation.tif");
+    run("8-bit");
+    run("Enhance Contrast...", "saturated=0.3");
+    run("Smooth");
+    run("Subtract Background...", "rolling=1200 sliding");
+    run("Enhance Contrast...", "saturated=0.3");
+    setAutoThreshold("Triangle dark");
+    run("Convert to Mask");
+    run("Set Measurements...", "area mean modal min integrated redirect=None decimal=3");
+    run("Analyze Particles...", "size=200-Infinity pixel display exclude clear include summarize record add in_situ");
+    close("segmentation.tif");
+    
+    // Return to original image for measurements
+    selectWindow(originalTitle);
+    run("Duplicate...", "title=Measurements.tif");
+    run("8-bit");
+    run("Enhance Contrast...", "saturated=0.3");
+    run("Smooth");
+    run("Subtract Background...", "rolling=1200 sliding");
+    run("Enhance Contrast...", "saturated=0.3");
+    roiManager("Show None");
+    roiManager("Show All");
+    run("Subtract Background...", "rolling=1200 sliding");
+    run("Enhance Contrast...", "saturated=0.3");
+    roiManager("Show None");
+    roiManager("Show All");
+    
+    // Perform measurements
+    run("Clear Results");
+    roiManager("Measure");
+    
+    // Calculate mean of all particles
+    if (nResults > 0) {
+        totalMean = 0;
+        for (j = 0; j < nResults; j++) {
+            totalMean += getResult("Mean", j);
+        }
+        overallMean = totalMean / nResults;
+        
+        // Clear results and add only the mean
+        run("Clear Results");
+        setResult("Image", 0, originalTitle);
+        setResult("Overall_Mean", 0, overallMean);
+        setResult("Particle_Count", 0, nResults);
+        updateResults();
+    }
+    
+    // Save results
+    baseName = replace(originalTitle, ".tif", "");
+    savePath = measurementsDir + baseName + "_results.csv";
+    saveAs("Results", savePath);
+    
+    // Clean up
+    close("Measurements.tif");
+    roiManager("Reset");
+}
+
+// Main function to process folders
+function processFolders() {
+    // Get the starting directory
+    startingDir = getDirectory("Choose a Directory to Process");
+    
+    // Initialize results table
+    run("Clear Results");
+    
+    // Process all subdirectories
+    processFolder(startingDir);
+    
+    // Show completion message
+    showMessage("Processing complete!");
+}
+
+// Recursive function to process a folder and its subfolders
+function processFolder(folder) {
+    // Open the directory and get list of files
+    fileList = getFileList(folder);
+    
+    // Process each file in the directory
+    for (i = 0; i < fileList.length; i++) {
+        filePath = folder + fileList[i];
+        
+        // If it's a directory, process it recursively
+        if (File.isDirectory(filePath)) {
+            processFolder(filePath + File.separator);
+        }
+        // If it's our target file, process it
+        else if (endsWith(fileList[i], "Image_CH3.tif")) {
+            // Open the image
+            open(filePath);
+            
+            // Process the image
+            processImage();
+            
+            // Close the original image
+            close();
+            close("*");
+        }
+    }
+}
+
+// Start the processing
+processFolders();
